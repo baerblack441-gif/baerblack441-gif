@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>سیستەمێ فەرمی یێ باوەرنامان</title>
+    
+    <!-- باشترین فۆنتێن کوردی کو پیت تێدا ناپچڕن -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;600;700;900&family=Noto+Kufi+Arabic:wght@500;700;900&family=Vazirmatn:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- کتێبخانەیێن پێدڤی بۆ وێنە و PDF یێ ڕاستەقینە -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <!-- Firebase Compat SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #1b4332;
+            --primary-dark: #081c15;
+            --gold: #c59b27;
+            --gold-light: #dfb746;
+            --bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --accent: #2563eb;
+        }
+
+        body.theme-blue { --primary: #0f3057; --primary-dark: #001f3f; --gold: #d4af37; }
+        body.theme-maroon { --primary: #5c0617; --primary-dark: #37000a; --gold: #cfa144; }
+        body.theme-black { --primary: #1e232a; --primary-dark: #000000; --gold: #d4af37; }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Vazirmatn', 'Cairo', Tahoma, sans-serif !important;
+            -webkit-tap-highlight-color: transparent;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 75px;
+            direction: rtl;
+        }
+
+        .top-navbar {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 12px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        .top-navbar h1 { font-size: 1.05rem; font-weight: 800; }
+
+        .status-badge {
+            font-size: 0.75rem;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 10px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; }
+
+        .container {
+            display: flex;
+            gap: 15px;
+            max-width: 1600px;
+            margin: 12px auto;
+            padding: 0 12px;
+        }
+
+        .editor-card, .archive-card, .bulk-card {
+            flex: 1;
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            height: calc(100vh - 105px);
+            overflow-y: auto;
+        }
+
+        .bulk-card { display: none; }
+
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin: 14px 0 8px 0;
+            border-bottom: 2px dashed #e2e8f0;
+            padding-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .quick-templates {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-template {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            padding: 5px 10px;
+            border-radius: 14px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-weight: 700;
+            transition: 0.2s;
+        }
+
+        .btn-template:hover { background: var(--primary); color: white; }
+
+        .form-group { margin-bottom: 8px; }
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 3px;
+            color: #475569;
+        }
+
+        .form-group input, 
+        .form-group textarea, 
+        .form-group select {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s;
+            background: #ffffff;
+            color: #0f172a;
+            direction: rtl;
+        }
+
+        .form-group input:focus, 
+        .form-group textarea:focus, 
+        .form-group select:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(197, 155, 39, 0.18);
+        }
+
+        .form-group textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+        .btn {
+            padding: 11px 14px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 0.88rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: 0.2s;
+        }
+        .btn:active { transform: scale(0.97); }
+
+        .btn-next-student {
+            background: #e0e7ff;
+            color: #3730a3;
+            border: 1.5px solid #c7d2fe;
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 0.9rem;
+        }
+
+        .btn-save { background: var(--success); color: white; width: 100%; margin-top: 10px; padding: 12px; font-size: 0.95rem; }
+        .btn-pdf { background: #dc2626; color: white; flex: 1; }
+        .btn-print { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; flex: 1; }
+        .btn-download { background: linear-gradient(135deg, var(--gold), var(--gold-light)); color: #1a1a1a; flex: 1; }
+        .action-buttons { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+
+        /* ئەرشیڤ */
+        .search-box { position: sticky; top: 0; background: white; padding-bottom: 8px; z-index: 10; }
+        .search-input { width: 100%; padding: 9px 12px; border: 2px solid var(--primary); border-radius: 8px; font-size: 0.85rem; }
+        .archive-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+
+        .cert-card-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-right: 4px solid var(--primary);
+            border-radius: 8px;
+            padding: 10px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .cert-item-info h4 { font-size: 0.92rem; color: var(--primary); font-weight: 800; }
+        .cert-item-info p { font-size: 0.75rem; color: #64748b; }
+        .cert-item-actions { display: flex; gap: 5px; }
+
+        .btn-icon { padding: 5px 8px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.78rem; font-weight: 700; }
+        .btn-load { background: #e2e8f0; color: #1e293b; }
+        .btn-delete { background: #fee2e2; color: var(--danger); }
+
+        /* دیتنا باوەرنامێ */
+        .preview-wrapper {
+            flex: 1.5;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            overflow: auto;
+            padding: 10px;
+            background: #cbd5e1;
+            border-radius: 14px;
+        }
+
+        .certificate-sheet {
+            width: 297mm;
+            min-width: 297mm;
+            height: 210mm;
+            min-height: 210mm;
+            background: #ffffff !important;
+            padding: 10mm;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.18);
+            position: relative;
+            box-sizing: border-box;
+            background-image: radial-gradient(var(--gold) 0.5px, transparent 0.5px), radial-gradient(var(--gold) 0.5px, #ffffff 0.5px);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+        }
+
+        .cert-frame-outer {
+            border: 4px solid var(--gold);
+            height: 100%;
+            padding: 5px;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .cert-frame-inner {
+            border: 2px solid var(--primary);
+            height: 100%;
+            padding: 18px 25px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.96) !important;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .corner { position: absolute; width: 22px; height: 22px; border-style: solid; border-color: var(--gold); }
+        .c-tl { top: -2px; right: -2px; border-width: 4px 4px 0 0; }
+        .c-tr { top: -2px; left: -2px; border-width: 4px 0 0 4px; }
+        .c-bl { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; }
+        .c-br { bottom: -2px; left: -2px; border-width: 0 0 4px 4px; }
+
+        .logo-box {
+            position: absolute;
+            top: 18px;
+            right: 22px;
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .logo-box img { width: 100%; height: 100%; object-fit: contain; }
+
+        .qr-box { position: absolute; top: 18px; left: 22px; text-align: center; }
+        .qr-canvas { width: 50px; height: 50px; }
+        .cert-serial { font-size: 0.65rem; color: #64748b; font-family: monospace !important; margin-top: 2px; }
+
+        .cert-school-name { font-size: 1.35rem; font-weight: 800; color: var(--primary); }
+        .cert-hadith { font-family: 'Amiri', serif !important; font-size: 1.15rem; color: #475569; font-style: italic; margin: 3px 0; }
+        
+        .title-container { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 6px 0; }
+        .badge-stamp { border: 2px dashed var(--gold); border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: var(--gold); transform: rotate(-8deg); }
+        .cert-main-title { font-family: 'Noto Kufi Arabic', 'Vazirmatn', sans-serif !important; font-size: 2.1rem; color: var(--primary); border-bottom: 3px double var(--gold); padding: 0 20px 3px 20px; }
+
+        .to-student-text { font-size: 1.1rem; color: #475569; font-weight: 600; }
+        .cert-student-name { font-size: 2.3rem; font-weight: 900; color: var(--gold); font-family: 'Amiri', 'Vazirmatn', serif !important; margin: 3px 0; }
+        .cert-class-name { font-size: 1.05rem; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+
+        .cert-main-desc { font-size: 1.1rem; color: #1e293b; max-width: 86%; margin: 0 auto; text-align: justify; text-align-last: center; line-height: 1.8; }
+        .cert-custom-desc { font-size: 1.02rem; color: #475569; margin-top: 4px; font-style: italic; }
+        .cert-dua { font-family: 'Amiri', serif !important; font-size: 1.3rem; font-weight: 700; color: var(--primary); margin-top: 6px; }
+
+        .footer-section { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 30px; margin-top: 10px; }
+        .signature-box { text-align: center; width: 180px; }
+        .sig-role { font-size: 0.95rem; font-weight: 800; color: var(--primary); }
+        .sig-name { font-size: 0.9rem; color: #334155; margin-top: 3px; font-weight: 600; }
+        .sig-divider { width: 110px; height: 1.5px; background: #cbd5e1; margin: 10px auto 0 auto; }
+        .cert-date-box { font-size: 0.9rem; font-weight: 700; color: #64748b; }
+
+        /* مۆبایل تاب بار */
+        .mobile-tab-bar {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border-top: 1px solid #e2e8f0;
+            z-index: 1000;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 9px;
+            border: none;
+            background: none;
+            font-size: 0.78rem;
+            font-weight: 800;
+            color: #64748b;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            cursor: pointer;
+        }
+
+        .tab-btn.active { color: var(--primary); border-top: 3px solid var(--primary); background: #f8fafc; }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0f172a;
+            color: white;
+            padding: 10px 22px;
+            border-radius: 30px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+            z-index: 99999;
+            opacity: 0;
+            pointer-events: none;
+            transition: 0.3s ease;
+            text-align: center;
+            max-width: 90%;
+        }
+        .toast.show { opacity: 1; top: 30px; }
+
+        @media screen and (max-width: 1024px) {
+            .container { flex-direction: column; margin: 0; padding: 8px; }
+            .mobile-tab-bar { display: flex; }
+            .editor-card, .archive-card, .bulk-card, .preview-wrapper { display: none; height: auto; border-radius: 8px; }
+            
+            body.view-edit .editor-card { display: block; }
+            body.view-archive .archive-card { display: block; }
+            body.view-bulk .bulk-card { display: block; }
+            body.view-preview .preview-wrapper { 
+                display: flex; 
+                overflow-x: auto; 
+                justify-content: flex-start;
+                padding: 10px 0;
+            }
+
+            .certificate-sheet { transform-origin: top right; transform: scale(0.35); margin-bottom: -130mm; }
+        }
+
+        #bulkPrintArea { display: none; }
+
+        @media print {
+            body { background: none; padding: 0; margin: 0; }
+            .top-navbar, .editor-card, .archive-card, .bulk-card, .mobile-tab-bar, .action-buttons, .toast { display: none !important; }
+            .container, .preview-wrapper { padding: 0; margin: 0; display: block !important; background: none; }
+            .certificate-sheet { transform: none !important; margin: 0 !important; width: 100vw; height: 100vh; box-shadow: none; page-break-after: always; }
+            #bulkPrintArea { display: block !important; }
+            body.bulk-mode #previewWrapper { display: none !important; }
+            @page { size: A4 landscape; margin: 0; }
+        }
+    </style>
+</head>
+<body class="theme-green view-edit">
+
+    <div id="toast" class="toast">پەیام</div>
+
+    <div class="top-navbar">
+        <h1>🎓 سیستەمێ فەرمی یێ باوەرنامان</h1>
+        <div class="status-badge" id="netStatus">
+            <div class="status-dot"></div>
+            <span>داتابەیس بەرهەڤە</span>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <!-- 1. دەستکاری -->
+        <div class="editor-card" id="editorCard">
+            
+            <button class="btn btn-next-student" onclick="nextStudentQuick()">
+                ➕ قوتابیێ دی ب لەز (داتایێن کەڤن دێ مینن)
+            </button>
+
+            <div class="section-title">⚡ تێکستێن ئامادەکری</div>
+            <div class="quick-templates">
+                <button class="btn-template" onclick="applyTemplate('morals')">🌟 رەوشت بەرز</button>
+                <button class="btn-template" onclick="applyTemplate('top')">🏆 نمرەیێن بەرز</button>
+                <button class="btn-template" onclick="applyTemplate('thanks')">🤝 سوپاسنامە</button>
+            </div>
+
+            <div class="section-title">👤 زانیاریێن قوتابی</div>
+            <div class="form-group">
+                <label>ناڤێ قوتابی (سیانی):</label>
+                <input type="text" id="inStudentName" value="ئەحمەد سەردار مەحمود" style="font-weight:bold; border-color:var(--gold);">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>پۆل و هۆبە:</label>
+                    <input type="text" id="inClass" value="پۆلا نەهێ - هۆبا (A)">
+                </div>
+                <div class="form-group">
+                    <label>پێشکێشکرن بۆ:</label>
+                    <input type="text" id="inRecipient" value="پێشکێشە بۆ قوتابیێ/ا ژیر:">
+                </div>
+            </div>
+
+            <div class="section-title">🏫 زانیاریێن قوتابخانێ (هەمیشە دمینن)</div>
+            <div class="form-group">
+                <label>ناڤێ قوتابخانێ:</label>
+                <input type="text" id="inSchool" value="قوتابخانا مە یا بنەڕەتی / ئامادەیی">
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>سەردێڕێ باوەرنامێ:</label>
+                    <input type="text" id="inTitle" value="باوەرناما ڕێزگرتن و سوپاسپێدانێ">
+                </div>
+                <div class="form-group">
+                    <label>مۆرک / نیشان:</label>
+                    <input type="text" id="inBadge" value="شایستە">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>لۆگۆیێ قوتابخانێ (وێنە هەڵبژێڕە):</label>
+                <input type="file" id="inLogo" accept="image/*" onchange="loadLogo(event)">
+            </div>
+
+            <div class="form-group">
+                <label>فەرموودە یان وتە:</label>
+                <input type="text" id="inHadith" value='قال رسول الله ﷺ: "كُلُّكُمْ رَاعٍ وَكُلُّكُمْ مَسْؤول عَنْ رَعِيَّتِهِ"'>
+            </div>
+
+            <div class="form-group">
+                <label>وەسفا سەرەکی:</label>
+                <textarea id="inMainDesc">ژبەر ئەنجامدانا کارێ باش، پێگیرییا تام ب رێنمایێن پەروەردەیی و بلند راگرتنا رەوشت و زانستێ د ناڤ پول و قوتابخانێ دا، ئەڤ باوەرنامەیە ژ لایێ دەستەیا کارگێری و مامۆستایان پێشکێش دهێتە کرن.</textarea>
+            </div>
+
+            <div class="form-group">
+                <label>وەسفا زێدە:</label>
+                <textarea id="inCustomDesc">دەستخۆشیێ لێ دکەین و هیڤیا بەردەوامی و پلەیێن بلندتر بۆ دخوازین.</textarea>
+            </div>
+
+            <div class="form-group">
+                <label>دوعا / دەستەواژە:</label>
+                <input type="text" id="inDua" value="بارک الله فيكم ووفقكم لكل خير">
+            </div>
+
+            <div class="section-title">✍️ ئیمزا و بەروار</div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>مامۆستایێ بابەت:</label>
+                    <input type="text" id="inTeacher" value="م. دلشاد عبداللە">
+                </div>
+                <div class="form-group">
+                    <label>ڕێڤەبەرێ قوتابخانێ:</label>
+                    <input type="text" id="inPrincipal" value="م. مەسیح محمد عزیز">
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>ڕێکەوت:</label>
+                    <input type="text" id="inDate" value="2026 / 5 / 25">
+                </div>
+                <div class="form-group">
+                    <label>رەنگێ باوەرنامێ:</label>
+                    <select id="themeSelect" onchange="changeTheme(this.value)">
+                        <option value="theme-green">کەسک و زێڕین</option>
+                        <option value="theme-blue">شین و زێڕین</option>
+                        <option value="theme-maroon">شەرابی و زێڕین</option>
+                        <option value="theme-black">ڕەش و زێڕین</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn btn-save" id="btnSaveFirebase">💾 سەیڤکرن د داتابەیسێ دا (Firebase)</button>
+
+            <!-- دوگمەیێن هەناردەکرنێ ب شێوازێ نوو و چاککری -->
+            <div class="action-buttons">
+                <button class="btn btn-pdf" onclick="downloadPDF()">📄 داگرتنا PDF</button>
+                <button class="btn btn-download" onclick="downloadImage()">🖼️ وێنە (JPG)</button>
+                <button class="btn btn-print" onclick="triggerCleanPrint()">🖨️ چاپکرن</button>
+            </div>
+
+        </div>
+
+        <!-- 2. چاپکرنا بەکۆمەڵ -->
+        <div class="bulk-card" id="bulkCard">
+            <div class="section-title">🖨️ چاپکرنا بەکۆمەڵ (تەواوی پۆلێ)</div>
+            <p style="font-size:0.8rem; color:#64748b; margin-bottom:10px;">
+                ناڤێن قوتابیان ل خوارێ بنڤیسە (هەر دێڕەک ناڤەک)، سیستەم دێ هەمیا پێکڤە ئامادە کەت:
+            </p>
+            <textarea id="inBulkNames" style="width:100%; height:180px; padding:10px; border-radius:8px; border:1.5px solid #cbd5e1;" placeholder="ئەحمەد سەردار مەحمود&#10;شڤان کاروان عەلی&#10;ئاڤان محمد تاهر&#10;ڕێناس عومەر خالد"></textarea>
+            
+            <button class="btn btn-print" style="width:100%; margin-top:15px;" onclick="printBulkCertificates()">
+                🖨️ چاپکرنا هەمی باوەرنامان ب ئێک جار
+            </button>
+        </div>
+
+        <!-- 3. ئەرشیڤێ داتابەیسێ -->
+        <div class="archive-card" id="archiveCard">
+            <div class="search-box">
+                <div class="section-title" style="margin-top:0;">📂 ئەرشیڤێ داتابەیسێ</div>
+                <input type="text" id="searchCert" class="search-input" placeholder="🔍 لێگەڕیان ب ناڤێ قوتابی یان پۆلێ..." onkeyup="filterArchive()">
+            </div>
+            
+            <div class="archive-list" id="archiveList">
+                <p style="text-align:center; color:#888; margin-top:20px;">باوەرنامە د بارکردنێ دانە...</p>
+            </div>
+        </div>
+
+        <!-- 4. دیتنا باوەرنامێ (Preview) -->
+        <div class="preview-wrapper" id="previewWrapper">
+            <div class="certificate-sheet" id="certificateNode">
+                <div class="cert-frame-outer">
+                    <div class="corner c-tl"></div>
+                    <div class="corner c-tr"></div>
+                    <div class="corner c-bl"></div>
+                    <div class="corner c-br"></div>
+                    
+                    <div class="cert-frame-inner">
+                        
+                        <div class="logo-box" id="logoDisplay" style="display:none;">
+                            <img id="imgLogo" src="" alt="Logo">
+                        </div>
+
+                        <div class="qr-box">
+                            <div id="qrcode" class="qr-canvas"></div>
+                            <div class="cert-serial" id="outSerial">NO: CERT-8942</div>
+                        </div>
+
+                        <div class="header-section">
+                            <div class="cert-school-name" id="outSchool">قوتابخانا مە یا بنەڕەتی / ئامادەیی</div>
+                            <div class="cert-hadith" id="outHadith">قال رسول الله ﷺ: "كُلُّكُمْ رَاعٍ وَكُلُّكُمْ مَسْؤول عَنْ رَعِيَّتِهِ"</div>
+                            <div class="title-container">
+                                <div class="badge-stamp" id="outBadge">شایستە</div>
+                                <h1 class="cert-main-title" id="outTitle">باوەرناما ڕێزگرتن و سوپاسپێدانێ</h1>
+                            </div>
+                        </div>
+
+                        <div class="body-section">
+                            <div class="to-student-text" id="outRecipient">پێشکێشە بۆ قوتابیێ/ا ژیر:</div>
+                            <div class="cert-student-name" id="outStudentName">ئەحمەد سەردار مەحمود</div>
+                            <div class="cert-class-name" id="outClass">پۆلا نەهێ - هۆبا (A)</div>
+
+                            <div class="cert-main-desc" id="outMainDesc">
+                                ژبەر ئەنجامدانا کارێ باش، پێگیرییا تام ب رێنمایێن پەروەردەیی و بلند راگرتنا رەوشت و زانستێ د ناڤ پول و قوتابخانێ دا، ئەڤ باوەرنامەیە ژ لایێ دەستەیا کارگێری و مامۆستایان پێشکێش دهێتە کرن.
+                            </div>
+
+                            <div class="cert-custom-desc" id="outCustomDesc">
+                                دەستخۆشیێ لێ دکەین و هیڤیا بەردەوامی و پلەیێن بلندتر بۆ دخوازین.
+                            </div>
+
+                            <div class="cert-dua" id="outDua">
+                                بارک الله فيكم ووفقكم لكل خير
+                            </div>
+                        </div>
+
+                        <div class="footer-section">
+                            <div class="signature-box">
+                                <div class="sig-role">مامۆستایێ بابەت</div>
+                                <div class="sig-name" id="outTeacher">م. دلشاد عبداللە</div>
+                                <div class="sig-divider"></div>
+                            </div>
+
+                            <div class="cert-date-box">
+                                ڕێکەوت: <span id="outDate">2026 / 5 / 25</span>
+                            </div>
+
+                            <div class="signature-box">
+                                <div class="sig-role">ڕێڤەبەرێ قوتابخانێ</div>
+                                <div class="sig-name" id="outPrincipal">م. مەسیح محمد عزیز</div>
+                                <div class="sig-divider"></div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="bulkPrintArea"></div>
+
+    <!-- مۆبایل تاب بار -->
+    <div class="mobile-tab-bar">
+        <button class="tab-btn active" onclick="switchMobileTab('edit')">
+            <span>✏️</span>
+            <span>دەستکاری</span>
+        </button>
+        <button class="tab-btn" onclick="switchMobileTab('bulk')">
+            <span>🖨️</span>
+            <span>بەکۆمەڵ</span>
+        </button>
+        <button class="tab-btn" onclick="switchMobileTab('archive')">
+            <span>📂</span>
+            <span>ئەرشیڤ</span>
+        </button>
+        <button class="tab-btn" onclick="switchMobileTab('preview')">
+            <span>👁️</span>
+            <span>دیتن</span>
+        </button>
+    </div>
+
+    <!-- Firebase SDK Logic -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBtKiD22pb5iwiaY5dv6WJMq1Ud_1CndGc",
+            authDomain: "renas-a9cca.firebaseapp.com",
+            projectId: "renas-a9cca",
+            storageBucket: "renas-a9cca.firebasestorage.app",
+            messagingSenderId: "59804048479",
+            appId: "1:59804048479:web:c9d4163362a5a653b60fea",
+            measurementId: "G-DQ4VRBCK11"
+        };
+
+        let db = null;
+        let certsCollection = null;
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            db = firebase.firestore();
+            certsCollection = db.collection("certificates");
+        } catch (e) {
+            console.warn("Firebase Init Warning:", e);
+        }
+
+        window.allCertificates = [];
+
+        function showToast(msg) {
+            const toast = document.getElementById("toast");
+            toast.innerText = msg;
+            toast.classList.add("show");
+            setTimeout(() => toast.classList.remove("show"), 3500);
+        }
+
+        document.getElementById('btnSaveFirebase').addEventListener('click', async () => {
+            const btn = document.getElementById('btnSaveFirebase');
+            btn.innerText = "⏳ چاڤەڕێبە...";
+            btn.disabled = true;
+
+            const certData = {
+                school: document.getElementById('inSchool').value,
+                title: document.getElementById('inTitle').value,
+                badge: document.getElementById('inBadge').value,
+                hadith: document.getElementById('inHadith').value,
+                recipient: document.getElementById('inRecipient').value,
+                studentName: document.getElementById('inStudentName').value,
+                className: document.getElementById('inClass').value,
+                mainDesc: document.getElementById('inMainDesc').value,
+                customDesc: document.getElementById('inCustomDesc').value,
+                dua: document.getElementById('inDua').value,
+                teacher: document.getElementById('inTeacher').value,
+                principal: document.getElementById('inPrincipal').value,
+                date: document.getElementById('inDate').value,
+                theme: document.getElementById('themeSelect').value,
+                serial: document.getElementById('outSerial').innerText,
+                createdAt: new Date().toISOString()
+            };
+
+            saveToLocalArchive(certData);
+            saveDefaultsLocally();
+
+            if (certsCollection) {
+                try {
+                    await certsCollection.add(certData);
+                    showToast("✅ باوەرنامە د فایەربەیسێ دا هاتە سەیڤکرن!");
+                } catch (err) {
+                    console.error(err);
+                    showToast("⚠️ د مۆبایلێ دا هاتە پاراستن!");
+                }
+            } else {
+                showToast("✅ باوەرنامە ل سەر مۆبایلێ هاتە سەیڤکرن!");
+            }
+
+            btn.innerText = "💾 سەیڤکرن د داتابەیسێ دا (Firebase)";
+            btn.disabled = false;
+        });
+
+        if (certsCollection) {
+            certsCollection.orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+                window.allCertificates = [];
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    data.id = docSnap.id;
+                    window.allCertificates.push(data);
+                });
+                renderArchiveUI(window.allCertificates);
+            }, (error) => {
+                loadLocalArchive();
+            });
+        } else {
+            loadLocalArchive();
+        }
+
+        function renderArchiveUI(list) {
+            const listContainer = document.getElementById('archiveList');
+            listContainer.innerHTML = "";
+            if (!list || list.length === 0) {
+                listContainer.innerHTML = `<p style="text-align:center; color:#888; margin-top:20px;">هیچ باوەرنامەک نەهاتیە سەیڤکرن.</p>`;
+                return;
+            }
+
+            list.forEach(data => {
+                const item = document.createElement('div');
+                item.className = "cert-card-item";
+                item.innerHTML = `
+                    <div class="cert-item-info">
+                        <h4>${data.studentName || 'بێ ناڤ'}</h4>
+                        <p>${data.className || ''} | ${data.date || ''}</p>
+                    </div>
+                    <div class="cert-item-actions">
+                        <button class="btn-icon btn-load" onclick="loadCertificate('${data.id}')">📂 ڤەکرن</button>
+                        <button class="btn-icon btn-delete" onclick="deleteCertificate('${data.id}')">🗑️</button>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+
+        window.loadCertificate = function(id) {
+            const cert = window.allCertificates.find(c => c.id === id);
+            if(!cert) return;
+
+            document.getElementById('inSchool').value = cert.school || '';
+            document.getElementById('inTitle').value = cert.title || '';
+            document.getElementById('inBadge').value = cert.badge || '';
+            document.getElementById('inHadith').value = cert.hadith || '';
+            document.getElementById('inRecipient').value = cert.recipient || '';
+            document.getElementById('inStudentName').value = cert.studentName || '';
+            document.getElementById('inClass').value = cert.className || '';
+            document.getElementById('inMainDesc').value = cert.mainDesc || '';
+            document.getElementById('inCustomDesc').value = cert.customDesc || '';
+            document.getElementById('inDua').value = cert.dua || '';
+            document.getElementById('inTeacher').value = cert.teacher || '';
+            document.getElementById('inPrincipal').value = cert.principal || '';
+            document.getElementById('inDate').value = cert.date || '';
+            
+            if(cert.theme) {
+                document.getElementById('themeSelect').value = cert.theme;
+                changeTheme(cert.theme);
+            }
+
+            updateAllPreview();
+            showToast(`باوەرناما (${cert.studentName}) هاتە ڤەکرن!`);
+            if(window.innerWidth <= 1024) switchMobileTab('preview');
+        };
+
+        window.deleteCertificate = async function(id) {
+            if(confirm("ئایا تو پشتڕاستی تە دڤێت ڤێ باوەرنامێ ژ داتابەیسێ ژێببەی؟")) {
+                try {
+                    if (certsCollection) await certsCollection.doc(id).delete();
+                } catch(e) {}
+                deleteFromLocalArchive(id);
+                showToast("باوەرنامە هاتە ژێبرن!");
+            }
+        };
+
+        function saveToLocalArchive(data) {
+            let local = JSON.parse(localStorage.getItem('my_certs') || '[]');
+            data.id = 'loc_' + Date.now();
+            local.unshift(data);
+            localStorage.setItem('my_certs', JSON.stringify(local));
+            if (!certsCollection) {
+                window.allCertificates = local;
+                renderArchiveUI(local);
+            }
+        }
+
+        function loadLocalArchive() {
+            let local = JSON.parse(localStorage.getItem('my_certs') || '[]');
+            window.allCertificates = local;
+            renderArchiveUI(local);
+        }
+
+        function deleteFromLocalArchive(id) {
+            let local = JSON.parse(localStorage.getItem('my_certs') || '[]');
+            local = local.filter(x => x.id !== id);
+            localStorage.setItem('my_certs', JSON.stringify(local));
+            if (!certsCollection) {
+                window.allCertificates = local;
+                renderArchiveUI(local);
+            }
+        }
+
+        window.filterArchive = function() {
+            const text = document.getElementById('searchCert').value.toLowerCase();
+            const items = document.querySelectorAll('.cert-card-item');
+            items.forEach(el => {
+                el.style.display = el.innerText.toLowerCase().includes(text) ? "flex" : "none";
+            });
+        };
+    </script>
+
+    <!-- چارەسەریا PDF و وێنەیان ب تەواوی -->
+    <script>
+        const fields = [
+            'School', 'Title', 'Badge', 'Hadith', 'Recipient', 
+            'StudentName', 'Class', 'MainDesc', 'CustomDesc', 
+            'Dua', 'Teacher', 'Principal', 'Date'
+        ];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSavedDefaults();
+            generateQR();
+            fields.forEach(field => {
+                const input = document.getElementById('in' + field);
+                const output = document.getElementById('out' + field);
+                if (input && output) {
+                    input.addEventListener('input', () => {
+                        output.innerText = input.value;
+                        saveDefaultsLocally();
+                    });
+                }
+            });
+        });
+
+        function nextStudentQuick() {
+            saveDefaultsLocally();
+            const studentInput = document.getElementById('inStudentName');
+            studentInput.value = "";
+            studentInput.focus();
+            
+            const newSerial = "CERT-" + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('outSerial').innerText = "NO: " + newSerial;
+            generateQR();
+
+            updateAllPreview();
+            showToast("✅ داتایێن کەڤن پاراستینە، ناڤێ قوتابیێ دی بنڤیسە!");
+            if(window.innerWidth <= 1024) switchMobileTab('edit');
+        }
+
+        function saveDefaultsLocally() {
+            const defaults = {
+                school: document.getElementById('inSchool').value,
+                title: document.getElementById('inTitle').value,
+                badge: document.getElementById('inBadge').value,
+                hadith: document.getElementById('inHadith').value,
+                recipient: document.getElementById('inRecipient').value,
+                className: document.getElementById('inClass').value,
+                mainDesc: document.getElementById('inMainDesc').value,
+                customDesc: document.getElementById('inCustomDesc').value,
+                dua: document.getElementById('inDua').value,
+                teacher: document.getElementById('inTeacher').value,
+                principal: document.getElementById('inPrincipal').value,
+                date: document.getElementById('inDate').value,
+                theme: document.getElementById('themeSelect').value
+            };
+            localStorage.setItem('school_cert_defaults', JSON.stringify(defaults));
+        }
+
+        function loadSavedDefaults() {
+            const saved = localStorage.getItem('school_cert_defaults');
+            if (saved) {
+                const data = JSON.parse(saved);
+                document.getElementById('inSchool').value = data.school || document.getElementById('inSchool').value;
+                document.getElementById('inTitle').value = data.title || document.getElementById('inTitle').value;
+                document.getElementById('inBadge').value = data.badge || document.getElementById('inBadge').value;
+                document.getElementById('inHadith').value = data.hadith || document.getElementById('inHadith').value;
+                document.getElementById('inRecipient').value = data.recipient || document.getElementById('inRecipient').value;
+                document.getElementById('inClass').value = data.className || document.getElementById('inClass').value;
+                document.getElementById('inMainDesc').value = data.mainDesc || document.getElementById('inMainDesc').value;
+                document.getElementById('inCustomDesc').value = data.customDesc || document.getElementById('inCustomDesc').value;
+                document.getElementById('inDua').value = data.dua || document.getElementById('inDua').value;
+                document.getElementById('inTeacher').value = data.teacher || document.getElementById('inTeacher').value;
+                document.getElementById('inPrincipal').value = data.principal || document.getElementById('inPrincipal').value;
+                document.getElementById('inDate').value = data.date || document.getElementById('inDate').value;
+                if(data.theme) {
+                    document.getElementById('themeSelect').value = data.theme;
+                    changeTheme(data.theme);
+                }
+                updateAllPreview();
+            }
+        }
+
+        function updateAllPreview() {
+            fields.forEach(field => {
+                const inp = document.getElementById('in' + field);
+                const out = document.getElementById('out' + field);
+                if (inp && out) out.innerText = inp.value;
+            });
+        }
+
+        function changeTheme(themeName) {
+            document.body.className = themeName + (document.body.className.includes('view-') ? ' ' + document.body.className.split(' ').find(c => c.startsWith('view-')) : '');
+            saveDefaultsLocally();
+        }
+
+        function applyTemplate(type) {
+            if(type === 'morals') {
+                document.getElementById('inTitle').value = "باوەرناما ڕێزگرتن و پێزانینێ";
+                document.getElementById('inMainDesc').value = "ژبەر ئەنجامدانا کارێ باش، پێگیرییا تام ب رێنمایێن پەروەردەیی و بلند راگرتنا رەوشت و ئادابێن پیرۆز د ناڤ پۆلێ دا.";
+                document.getElementById('inBadge').value = "رەوشت بەرز";
+            } else if(type === 'top') {
+                document.getElementById('inTitle').value = "باوەرناما نایاب و سەرکەفتنێ";
+                document.getElementById('inMainDesc').value = "ژبەر بدەستڤەئینانا نمرەیێن بەرز و سەرکەفتنەکا بەرچاو د ئەزموونان دا ب شێوەیەکێ شایستە و نایاب.";
+                document.getElementById('inBadge').value = "سەرکەفتی";
+            } else if(type === 'thanks') {
+                document.getElementById('inTitle').value = "سوپاسنامە و پێزانین";
+                document.getElementById('inMainDesc').value = "دەستخۆشی و رێزگرتن بو هەول و ماندیبوونا بەردەوام د چاڵاکی و پێشڤەبرنا ژینگەها قوتابخانێ دا.";
+                document.getElementById('inBadge').value = "دڵسۆز";
+            }
+            updateAllPreview();
+            saveDefaultsLocally();
+        }
+
+        function loadLogo(event) {
+            const reader = new FileReader();
+            reader.onload = function() {
+                const output = document.getElementById('imgLogo');
+                output.src = reader.result;
+                document.getElementById('logoDisplay').style.display = 'flex';
+            };
+            if(event.target.files[0]) {
+                reader.readAsDataURL(event.target.files[0]);
+            }
+        }
+
+        function generateQR() {
+            const qrContainer = document.getElementById("qrcode");
+            qrContainer.innerHTML = "";
+            new QRCode(qrContainer, {
+                text: "https://renas-a9cca.firebaseapp.com/?cert=" + document.getElementById('outSerial').innerText,
+                width: 45,
+                height: 45
+            });
+        }
+
+        // چارەسەرییا کێشا مۆبایلێ: باوەرنامێ ل پشتی پەردێ دکێشیت دا چو جاران سپی دەرنەچیت
+        async function renderCertificateCanvas() {
+            const originalCert = document.getElementById('certificateNode');
+            
+            // کۆپییەک ژ باوەرنامێ دروست دکەین کو مۆبایل تێکی نەدەت
+            const clone = originalCert.cloneNode(true);
+            clone.style.position = 'fixed';
+            clone.style.top = '0';
+            clone.style.left = '-10000px';
+            clone.style.transform = 'none';
+            clone.style.display = 'block';
+            clone.style.zIndex = '999999';
+            clone.style.visibility = 'visible';
+            document.body.appendChild(clone);
+
+            try {
+                const canvas = await html2canvas(clone, {
+                    scale: 2, // کوالێتییا بەرز
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: "#ffffff"
+                });
+                document.body.removeChild(clone);
+                return canvas;
+            } catch (e) {
+                document.body.removeChild(clone);
+                throw e;
+            }
+        }
+
+        // ١. دروستکرن و داگرتنا ڕاستەقینە یا فایلێ PDF ب قەبارێ A4
+        async function downloadPDF() {
+            showToast("⏳ فایلێ PDF د ئامادەکرنێ دایە...");
+            try {
+                const canvas = await renderCertificateCanvas();
+                const { jsPDF } = window.jspdf;
+                
+                // A4 ب درێژی (Landscape)
+                const pdf = new jsPDF({
+                    orientation: 'landscape',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const imgData = canvas.toDataURL('image/jpeg', 0.98);
+                pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
+
+                const studentName = document.getElementById('inStudentName').value.trim() || 'قوتابی';
+                pdf.save(`باوەرنامە_${studentName}.pdf`);
+                showToast("✅ فایلێ PDF هاتە داگرتن!");
+            } catch (err) {
+                console.error(err);
+                showToast("❌ کێشەیەک ڕوویدا، تکایە جارەکا دی تاقی بکە!");
+            }
+        }
+
+        // ٢. دروستکرن و داگرتنا وێنەیێ کوالێتی بەرز (JPG)
+        async function downloadImage() {
+            showToast("⏳ وێنە د ئامادەکرنێ دایە...");
+            try {
+                const canvas = await renderCertificateCanvas();
+                const studentName = document.getElementById('inStudentName').value.trim() || 'قوتابی';
+                const link = document.createElement('a');
+                link.download = `باوەرنامە_${studentName}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                link.click();
+                showToast("✅ وێنە (JPG) هاتە داگرتن!");
+            } catch (err) {
+                console.error(err);
+                showToast("❌ کێشەیەک ڕوویدا د دروستکرنا وێنەی دا!");
+            }
+        }
+
+        // ٣. چاپکرنا ڕاستەوخۆ (بۆ پرنتەری)
+        function triggerCleanPrint() {
+            if(window.innerWidth <= 1024) {
+                // ئەگەر ل سەر مۆبایلێ بیت باشترە ئێکسەر PDF داگریت یان بچیتە سەر دیتن
+                switchMobileTab('preview');
+                setTimeout(() => window.print(), 400);
+            } else {
+                window.print();
+            }
+        }
+
+        function printBulkCertificates() {
+            const text = document.getElementById('inBulkNames').value.trim();
+            if(!text) {
+                alert("تکایە ناڤێن قوتابیان بنڤیسە!");
+                return;
+            }
+
+            const names = text.split(/\n|,/).map(n => n.trim()).filter(n => n.length > 0);
+            const printArea = document.getElementById('bulkPrintArea');
+            printArea.innerHTML = "";
+
+            const baseCert = document.getElementById('certificateNode');
+
+            names.forEach((name, idx) => {
+                const clone = baseCert.cloneNode(true);
+                clone.style.transform = "none";
+                clone.querySelector('.cert-student-name').innerText = name;
+                clone.querySelector('.cert-serial').innerText = "NO: CERT-" + (8000 + idx);
+                printArea.appendChild(clone);
+            });
+
+            document.body.classList.add('bulk-mode');
+            window.print();
+            setTimeout(() => {
+                document.body.classList.remove('bulk-mode');
+                printArea.innerHTML = "";
+            }, 1500);
+        }
+
+        function switchMobileTab(tab) {
+            const btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(b => b.classList.remove('active'));
+            
+            document.body.classList.remove('view-edit', 'view-archive', 'view-bulk', 'view-preview');
+            
+            if (tab === 'edit') {
+                document.body.classList.add('view-edit');
+                btns[0].classList.add('active');
+            } else if(tab === 'bulk') {
+                document.body.classList.add('view-bulk');
+                btns[1].classList.add('active');
+            } else if(tab === 'archive') {
+                document.body.classList.add('view-archive');
+                btns[2].classList.add('active');
+            } else {
+                document.body.classList.add('view-preview');
+                btns[3].classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>
